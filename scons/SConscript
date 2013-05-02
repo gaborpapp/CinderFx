@@ -1,0 +1,11 @@
+Import('env')
+
+_INCLUDES = [Dir('../src').abspath]
+
+_SOURCES = ['Fluid2D.cpp']
+_SOURCES = [File('../src/cinderfx/' + s).abspath for s in _SOURCES]
+
+env.Append(APP_SOURCES = _SOURCES)
+env.Append(CPPPATH = _INCLUDES)
+
+Return('env')

@@ -1,0 +1,8 @@
+env = Environment()
+
+env['APP_TARGET'] = 'Fluid2DParticleSoupApp'
+env['APP_SOURCES'] = ['Fluid2DParticleSoupApp.cpp', 'ParticleSoup.cpp']
+
+env = SConscript('../../../scons/SConscript', exports = 'env')
+SConscript('../../../../../scons/SConscript', exports = 'env')
+

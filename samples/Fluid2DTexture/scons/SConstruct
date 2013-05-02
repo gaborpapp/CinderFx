@@ -1,0 +1,9 @@
+env = Environment()
+
+env['APP_TARGET'] = 'Fluid2DTextureApp'
+env['APP_SOURCES'] = ['Fluid2DTextureApp.cpp']
+env['RESOURCES'] = ['uv.png']
+
+env = SConscript('../../../scons/SConscript', exports = 'env')
+SConscript('../../../../../scons/SConscript', exports = 'env')
+
