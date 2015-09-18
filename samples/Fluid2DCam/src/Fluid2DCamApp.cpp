@@ -9,7 +9,8 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 */
 
-#include "cinder/app/AppNative.h"
+#include "cinder/app/App.h"
+#include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Texture.h"
 #include "cinder/ip/Resize.h"
@@ -23,9 +24,9 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 const int   kFlowScale = 8;
 const float kDrawScale = 4;
 
-class Fluid2DCamAppApp : public ci::app::AppNative {
+class Fluid2DCamAppApp : public ci::app::App {
 public:
-	void prepareSettings( ci::app::AppNative::Settings *settings );
+	static void prepareSettings( ci::app::App::Settings *settings );
 	void setup();
 	void mouseDown( ci::app::MouseEvent event );	
 	void mouseDrag( ci::app::MouseEvent event );
@@ -33,23 +34,23 @@ public:
 	void draw();
 
 private:
-	ci::Capture					mCapture;
-	ci::Surface8u				mFlipped;
-	ci::gl::Texture				mTexCam;
+	ci::CaptureRef				mCapture;
+	ci::Surface8uRef				mFlipped;
+	ci::gl::TextureRef				mTexCam;
 
-	ci::Surface8u				mPrvScaled, mCurScaled;
+	ci::Surface8uRef				mPrvScaled, mCurScaled;
 	cv::Mat						mPrvCvData, mCurCvData;
 	cv::Mat						mFlow;
 	float						mVelThreshold;
     
 	int							mNumActiveFlowVectors;
-	std::vector<std::pair<ci::Vec2i, ci::Vec2f> >	mFlowVectors;
+	std::vector<std::pair<ci::ivec2, ci::vec2> >	mFlowVectors;
 
 	int							mFluid2DResX;
 	int							mFluid2DResY;
 	float						mVelScale;
 	float						mDenScale;
-	ci::Vec2f					mPrevPos;
+	ci::vec2					mPrevPos;
 	cinderfx::Fluid2D			mFluid2D;
 
 	ci::Surface32f				mSurfVel0, mSurfVel1;
@@ -59,12 +60,12 @@ private:
 	ci::Channel32f				mChanCurl;
 	ci::Channel32f				mChanCurlLen;
 	
-	ci::gl::Texture				mTexVel0, mTexVel1;
-	ci::gl::Texture				mTexDen0, mTexDen1;
-	ci::gl::Texture				mTexDiv;
-	ci::gl::Texture				mTexPrs;
-	ci::gl::Texture				mTexCurl;
-	ci::gl::Texture				mTexCurlLen;
+	ci::gl::TextureRef			mTexVel0, mTexVel1;
+	ci::gl::TextureRef			mTexDen0, mTexDen1;
+	ci::gl::TextureRef			mTexDiv;
+	ci::gl::TextureRef			mTexPrs;
+	ci::gl::TextureRef			mTexCurl;
+	ci::gl::TextureRef			mTexCurlLen;
 	
 	ci::params::InterfaceGl		mParams;
 };
@@ -76,9 +77,9 @@ using namespace std;
 
 void Fluid2DCamAppApp::prepareSettings( Settings *settings )
 {
-	mFluid2DResX = 130;
-	mFluid2DResY = (int)(mFluid2DResX/1.3333333f + 0.5f);
-	settings->setWindowSize( (int)(4*kDrawScale*mFluid2DResX), (int)(3*kDrawScale*mFluid2DResY) );
+	int fluid2DResX = 130;
+	int fluid2DResY = (int)(fluid2DResX/1.3333333f + 0.5f);
+	settings->setWindowSize( (int)(4*kDrawScale*fluid2DResX), (int)(3*kDrawScale*fluid2DResY) );
 	settings->setFrameRate( 1000 );
 }
 
@@ -86,6 +87,8 @@ void Fluid2DCamAppApp::setup()
 {
 	glEnable( GL_TEXTURE_2D );
 	
+	mFluid2DResX = 130;
+	mFluid2DResY = (int)(mFluid2DResX/1.3333333f + 0.5f);
 	mVelThreshold = 0.75f;
 	mNumActiveFlowVectors = 0;
 #if defined( CINDER_MSW )
@@ -111,16 +114,16 @@ void Fluid2DCamAppApp::setup()
 	mChanPrs		= Channel32f( mFluid2DResX, mFluid2DResY );
 	mChanCurl		= Channel32f( mFluid2DResX, mFluid2DResY );
 	mChanCurlLen	= Channel32f( mFluid2DResX, mFluid2DResY );
-	mTexVel0		= gl::Texture( mSurfVel0 );
-	mTexVel1		= gl::Texture( mSurfVel1 );
-	mTexDen0		= gl::Texture( mChanDen0 );
-	mTexDen1		= gl::Texture( mChanDen1 );
-	mTexDiv			= gl::Texture( mChanDiv );
-	mTexPrs			= gl::Texture( mChanPrs );
-	mTexCurl		= gl::Texture( mChanCurl );
-	mTexCurlLen		= gl::Texture( mChanCurlLen );
+	mTexVel0		= gl::Texture::create( mSurfVel0 );
+	mTexVel1		= gl::Texture::create( mSurfVel1 );
+	mTexDen0		= gl::Texture::create( mChanDen0 );
+	mTexDen1		= gl::Texture::create( mChanDen1 );
+	mTexDiv			= gl::Texture::create( mChanDiv );
+	mTexPrs			= gl::Texture::create( mChanPrs );
+	mTexCurl		= gl::Texture::create( mChanCurl );
+	mTexCurlLen		= gl::Texture::create( mChanCurlLen );
 	
-	mParams = params::InterfaceGl( "Params", Vec2i( 300, 400 ) );
+	mParams = params::InterfaceGl( "Params", ivec2( 300, 400 ) );
 	mParams.addParam( "Stam Step", mFluid2D.stamStepAddr() );
 	mParams.addSeparator();
 	mParams.addParam( "Velocity Threshold", &mVelThreshold, "min=0 max=2 step=0.001" );
@@ -146,8 +149,8 @@ void Fluid2DCamAppApp::setup()
 	
 	// Camera
 	try {
-		mCapture = Capture( 640, 480 );
-		mCapture.start();
+		mCapture = Capture::create( 640, 480 );
+		mCapture->start();
 	}
 	catch( ... ) {
 		console() << "Failed to initialize capture" << std::endl;
@@ -165,7 +168,7 @@ void Fluid2DCamAppApp::mouseDrag( MouseEvent event )
 	float y = (event.getY()/(float)getWindowHeight())*mFluid2D.resY();	
 	
 	if( event.isLeftDown() ) {
-		Vec2f dv = event.getPos() - mPrevPos;
+		vec2 dv = vec2( event.getPos() ) - mPrevPos;
 		mFluid2D.splatVelocity( x, y, mVelScale*dv );
 		mFluid2D.splatDensity( x, y, mDenScale );
 	}
@@ -176,22 +179,22 @@ void Fluid2DCamAppApp::mouseDrag( MouseEvent event )
 void Fluid2DCamAppApp::update()
 {
 	
-	if( mCapture && mCapture.checkNewFrame() ) {
+	if( mCapture && mCapture->checkNewFrame() ) {
 		if( ! mTexCam ) {
-			mTexCam = gl::Texture( mCapture.getSurface() );
+			mTexCam = gl::Texture::create( *(mCapture->getSurface()) );
 		}
 
 		// Flip the image
 		if( ! mFlipped ) {
-			Surface8u srcImg = mCapture.getSurface();
-			mFlipped = Surface8u( srcImg.getWidth(), srcImg.getHeight(), srcImg.hasAlpha(), srcImg.getChannelOrder() );
+			Surface8uRef srcImg = mCapture->getSurface();
+			mFlipped = Surface8u::create( srcImg->getWidth(), srcImg->getHeight(), srcImg->hasAlpha(), srcImg->getChannelOrder() );
 		}
-		Surface8u srcImg = mCapture.getSurface();
-		mFlipped = Surface8u( srcImg.getWidth(), srcImg.getHeight(), srcImg.hasAlpha(), srcImg.getChannelOrder() );
-		for( int y = 0; y < mCapture.getHeight(); ++y ) {
-			const Color8u* src = (const Color8u*)(srcImg.getData() + (y + 1)*srcImg.getRowBytes() - srcImg.getPixelInc());
-			Color8u* dst = (Color8u*)(mFlipped.getData() + y*mFlipped.getRowBytes());
-			for( int x = 0; x < mCapture.getWidth(); ++x ) {
+		Surface8uRef srcImg = mCapture->getSurface();
+		mFlipped = Surface8u::create( srcImg->getWidth(), srcImg->getHeight(), srcImg->hasAlpha(), srcImg->getChannelOrder() );
+		for( int y = 0; y < mCapture->getHeight(); ++y ) {
+			const Color8u* src = (const Color8u*)(srcImg->getData() + (y + 1)*srcImg->getRowBytes() - srcImg->getPixelInc());
+			Color8u* dst = (Color8u*)(mFlipped->getData() + y*mFlipped->getRowBytes());
+			for( int x = 0; x < mCapture->getWidth(); ++x ) {
 				*dst = *src;
 				++dst;
 				--src;
@@ -200,14 +203,14 @@ void Fluid2DCamAppApp::update()
 		
 		// Create scaled image
 		if( ! mCurScaled  ) {
-			mCurScaled = Surface8u( mFlipped.getWidth()/kFlowScale, mFlipped.getHeight()/kFlowScale, mFlipped.hasAlpha(), mFlipped.getChannelOrder() );
+			mCurScaled = Surface8u::create( mFlipped->getWidth()/kFlowScale, mFlipped->getHeight()/kFlowScale, mFlipped->hasAlpha(), mFlipped->getChannelOrder() );
 		}		
-		ip::resize( mFlipped, &mCurScaled );
+		ip::resize( *mFlipped, mCurScaled.get() );
 
 		// Optical flow 
 		if( mCurScaled && mPrvScaled ) {
 			mPrvCvData = mCurCvData;
-			mCurCvData = cv::Mat( toOcv( Channel( mCurScaled ) ) );
+			mCurCvData = cv::Mat( toOcv( Channel( *mCurScaled ) ) );
 
 			if( mPrvCvData.data && mCurCvData.data ) {
 				int pyrLvels		= 3;
@@ -219,22 +222,22 @@ void Fluid2DCamAppApp::update()
 
 				if( mFlow.data ) {
 					if( mFlowVectors.empty() ) {
-						mFlowVectors.resize( mCurScaled.getWidth()*mCurScaled.getHeight() );
+						mFlowVectors.resize( mCurScaled->getWidth()*mCurScaled->getHeight() );
 					}
 					
 					//memset( &mFlowVectors[0], 0, mCurScaled.getWidth()*mCurScaled.getHeight()*sizeof( Vec2f ) );
 					mNumActiveFlowVectors = 0;
-					for( int j = 0; j < mCurScaled.getHeight(); ++j ) {
-						for( int i = 0; i < mCurScaled.getWidth(); ++i ) {
+					for( int j = 0; j < mCurScaled->getHeight(); ++j ) {
+						for( int i = 0; i < mCurScaled->getWidth(); ++i ) {
 							const float* fptr = reinterpret_cast<float*>(mFlow.data + j*mFlow.step + i*sizeof(float)*2);
 							//
-							Vec2f v = Vec2f( fptr[0], fptr[1] ); 
-							if( v.lengthSquared() >= mVelThreshold ) {
+							vec2 v = vec2( fptr[0], fptr[1] ); 
+							if( glm::length2( v ) >= mVelThreshold ) {
 								if( mNumActiveFlowVectors >= (int)mFlowVectors.size() ) {
-									mFlowVectors.push_back( std::make_pair( Vec2i( i, j ), v ) );
+									mFlowVectors.push_back( std::make_pair( ivec2( i, j ), v ) );
 								}
 								else {
-									mFlowVectors[mNumActiveFlowVectors] = std::make_pair( Vec2i( i, j ), v );
+									mFlowVectors[mNumActiveFlowVectors] = std::make_pair( ivec2( i, j ), v );
 								}
 								++mNumActiveFlowVectors;
 							}
@@ -245,29 +248,29 @@ void Fluid2DCamAppApp::update()
 		}
 
 		// Update texture
-		mTexCam.update( mFlipped );
+		mTexCam->update( *mFlipped );
 
 		// Save previous frame
 		if( ! mPrvScaled ) {
-			mPrvScaled = Surface8u( mCurScaled.getWidth(), mCurScaled.getHeight(), mCurScaled.hasAlpha(), mCurScaled.getChannelOrder() );
+			mPrvScaled = Surface8u::create( mCurScaled->getWidth(), mCurScaled->getHeight(), mCurScaled->hasAlpha(), mCurScaled->getChannelOrder() );
 		}
-		memcpy( mPrvScaled.getData(), mCurScaled.getData(), mCurScaled.getHeight()*mCurScaled.getRowBytes() );
+		memcpy( mPrvScaled->getData(), mCurScaled->getData(), mCurScaled->getHeight()*mCurScaled->getRowBytes() );
 	}
 
 	// Update fluid
 	float dx = (mFluid2DResX - 2)/(float)(640/kFlowScale);
 	float dy = (mFluid2DResY - 2)/(float)(480/kFlowScale);
 	for( int i = 0; i < mNumActiveFlowVectors; ++i ) {
-		Vec2f P = mFlowVectors[i].first;
-		const Vec2f& v = mFlowVectors[i].second;
-		mFluid2D.splatDensity( P.x*dx + 1, P.y*dy + 1, mDenScale*v.lengthSquared() );
+		vec2 P = mFlowVectors[i].first;
+		const vec2& v = mFlowVectors[i].second;
+		mFluid2D.splatDensity( P.x*dx + 1, P.y*dy + 1, mDenScale*glm::length2( v ) );
 		mFluid2D.splatVelocity( P.x*dx + 1, P.y*dy + 1, v*mVelScale );
 	}
 	mFluid2D.step();
 
 	// Update velocity
-	const Vec2f* srcVel0 = mFluid2D.dbgVel0().data();
-	const Vec2f* srcVel1 = mFluid2D.dbgVel1().data();
+	const vec2* srcVel0 = mFluid2D.dbgVel0().data();
+	const vec2* srcVel1 = mFluid2D.dbgVel1().data();
 	Colorf* dstVel0 = (Colorf*)mSurfVel0.getData();
 	Colorf* dstVel1 = (Colorf*)mSurfVel1.getData();
 	for( int j = 0; j < mFluid2DResY; ++j ) {
@@ -285,26 +288,26 @@ void Fluid2DCamAppApp::update()
 	mChanDen0 = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgDen0().data() );
 	mChanDen1 = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgDen1().data() );
 	
-	mTexDen0.update( mChanDen0 );
-	mTexDen1.update( mChanDen1 );
+	mTexDen0->update( mChanDen0 );
+	mTexDen1->update( mChanDen1 );
 	
 	// Update velocity textures
-	mTexVel0.update( mSurfVel0 );
-	mTexVel1.update( mSurfVel1 );
+	mTexVel0->update( mSurfVel0 );
+	mTexVel1->update( mSurfVel1 );
 	
 	// Update Divergence
 	mChanDiv = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgDivergence().data() );
-	mTexDiv.update( mChanDiv );
+	mTexDiv->update( mChanDiv );
 
 	// Update Divergence
 	mChanPrs = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgPressure().data() );
-	mTexPrs.update( mChanPrs );
+	mTexPrs->update( mChanPrs );
 
 	// Update Curl, Curl Length
 	mChanCurl = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgCurl().data() );
-	mTexCurl.update( mChanCurl );
+	mTexCurl->update( mChanCurl );
 	mChanCurlLen = Channel32f( mFluid2DResX, mFluid2DResY, mFluid2DResX*sizeof(float), 1, mFluid2D.dbgCurlLength().data() );
-	mTexCurlLen.update( mChanCurlLen );
+	mTexCurlLen->update( mChanCurlLen );
 }
 
 void Fluid2DCamAppApp::draw()
@@ -328,24 +331,22 @@ void Fluid2DCamAppApp::draw()
 	gl::draw( mTexCurl,    Rectf( 2*kDrawScale*mFluid2DResX, 2*kDrawScale*mFluid2DResY, 3*kDrawScale*mFluid2DResX, 4*kDrawScale*mFluid2DResY ) );
 	gl::draw( mTexCurlLen, Rectf( 3*kDrawScale*mFluid2DResX, 2*kDrawScale*mFluid2DResY, 4*kDrawScale*mFluid2DResX, 4*kDrawScale*mFluid2DResY ) );
 
-	mTexCurlLen.unbind();
+	mTexCurlLen->unbind();
 
 	gl::color( Color( 1, 0, 0 ) );
 	glLineWidth( 0.5f );
-	glBegin( GL_LINES );
-		glVertex2f( Vec2f( 0, 1*kDrawScale*mFluid2DResY ) );
-		glVertex2f( Vec2f( (float)getWindowWidth(), 1*kDrawScale*mFluid2DResY ) );
-		glVertex2f( Vec2f( 0, 2*kDrawScale*mFluid2DResY ) );
-		glVertex2f( Vec2f( (float)getWindowWidth(), 2*kDrawScale*mFluid2DResY ) );
+		gl::drawLine( vec2( 0, 1*kDrawScale*mFluid2DResY ),
+					  vec2( (float)getWindowWidth(), 1*kDrawScale*mFluid2DResY ) );
+		gl::drawLine( vec2( 0, 2*kDrawScale*mFluid2DResY ),
+					  vec2( (float)getWindowWidth(), 2*kDrawScale*mFluid2DResY ) );
 
-		glVertex2f( Vec2f( 1*kDrawScale*mFluid2DResX, 0 ) );
-		glVertex2f( Vec2f( 1*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
-		glVertex2f( Vec2f( 2*kDrawScale*mFluid2DResX, 0 ) );
-		glVertex2f( Vec2f( 2*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
-		glVertex2f( Vec2f( 3*kDrawScale*mFluid2DResX, 0 ) );
-		glVertex2f( Vec2f( 3*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
-	glEnd();
+		gl::drawLine( vec2( 1*kDrawScale*mFluid2DResX, 0 ),
+					  vec2( 1*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
+		gl::drawLine( vec2( 2*kDrawScale*mFluid2DResX, 0 ),
+					  vec2( 2*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
+		gl::drawLine( vec2( 3*kDrawScale*mFluid2DResX, 0 ),
+					  vec2( 3*kDrawScale*mFluid2DResX, (float)getWindowHeight() ) );
 	mParams.draw();
 }
 
-CINDER_APP_NATIVE( Fluid2DCamAppApp, RendererGl )
+CINDER_APP( Fluid2DCamAppApp, RendererGl, Fluid2DCamAppApp::prepareSettings )

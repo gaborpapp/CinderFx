@@ -9,7 +9,7 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 */
 
-#include "cinder/app/AppNative.h"
+#include "cinder/app/App.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/GlslProg.h"
 #include "cinder/gl/Texture.h"
@@ -24,9 +24,9 @@ using namespace std;
 #include "cinderfx/Fluid2D.h"
 using namespace cinderfx;
 
-class Fluid2DBasicApp : public ci::app::AppNative {
+class Fluid2DBasicApp : public ci::app::App {
 public:
-	void prepareSettings( ci::app::AppNative::Settings *settings );
+	static void prepareSettings( ci::app::App::Settings *settings );
 	void setup();
 	void keyDown( ci::app::KeyEvent event );
 	void mouseDown( ci::app::MouseEvent event );	
@@ -51,7 +51,7 @@ void Fluid2DBasicApp::prepareSettings( Settings *settings )
 	settings->setWindowSize( 700, 700 );
     settings->setResizable( false ); 
 	settings->setFrameRate( 1000 );
-	settings->enableMultiTouch();
+	settings->setMultiTouchEnabled();
 }
 
 void Fluid2DBasicApp::setup()
@@ -165,4 +165,4 @@ void Fluid2DBasicApp::draw()
 	mParams.draw();
 }
 
-CINDER_APP_NATIVE( Fluid2DBasicApp, RendererGl )
+CINDER_APP( Fluid2DBasicApp, RendererGl, Fluid2DBasicApp::prepareSettings )

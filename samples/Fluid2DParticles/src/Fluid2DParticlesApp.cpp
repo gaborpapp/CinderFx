@@ -9,7 +9,7 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 */
 
-#include "cinder/app/AppNative.h"
+#include "cinder/app/App.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/GlslProg.h"
 #include "cinder/gl/Texture.h"
@@ -21,9 +21,9 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 #include "Particles.h"
 
-class Fluid2DParticlesApp : public ci::app::AppNative {
+class Fluid2DParticlesApp : public ci::app::App {
 public:
-	void prepareSettings( ci::app::AppNative::Settings *settings );
+	static void prepareSettings( ci::app::App::Settings *settings );
 	void setup();
 	void keyDown( ci::app::KeyEvent event );
 	void mouseDown( ci::app::MouseEvent event );	
@@ -59,7 +59,7 @@ void Fluid2DParticlesApp::prepareSettings( Settings *settings )
    	settings->setResizable( false ); 
 	settings->setResizable( false );     
 	settings->setFrameRate( 1000 );
-	settings->enableMultiTouch();
+	settings->setMultiTouchEnabled();
 }
 
 void Fluid2DParticlesApp::setup()
@@ -225,4 +225,4 @@ void Fluid2DParticlesApp::draw()
 	mParams.draw();
 }
 
-CINDER_APP_NATIVE( Fluid2DParticlesApp, RendererGl )
+CINDER_APP( Fluid2DParticlesApp, RendererGl, Fluid2DParticlesApp::prepareSettings )

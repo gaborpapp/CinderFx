@@ -9,7 +9,7 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 */
 
-#include "cinder/app/AppNative.h"
+#include "cinder/app/App.h"
 #include "cinder/app/RendererGl.h"
 #include "cinder/gl/gl.h"
 #include "cinder/gl/Texture.h"
@@ -26,9 +26,9 @@ http://www.geometrictools.com/License/Boost/LICENSE_1_0.txt
 
 #include "cinderfx/Fluid2D.h"
 
-class Fluid2DTextureApp : public ci::app::AppNative {
+class Fluid2DTextureApp : public ci::app::App {
 public:
-	void prepareSettings( ci::app::AppNative::Settings *settings );
+	static void prepareSettings( ci::app::App::Settings *settings );
 	void setup();
 	void keyDown( ci::app::KeyEvent event );
 	void mouseDown( ci::app::MouseEvent event );	
@@ -61,7 +61,7 @@ void Fluid2DTextureApp::prepareSettings( Settings *settings )
 	settings->setWindowSize( 700, 700 );
    	settings->setResizable( false ); 
 	settings->setFrameRate( 1000 );
-	settings->enableMultiTouch();
+	settings->setMultiTouchEnabled();
 }
 
 void Fluid2DTextureApp::setup()
@@ -108,7 +108,7 @@ void Fluid2DTextureApp::setup()
 	// Points and texture coordinates
 	for( int j = 0; j < mFluid2D.resY(); ++j ) {
 		for( int i = 0; i < mFluid2D.resX(); ++i ) {
-			mTriMesh->appendVertex( vec2( 0.0f, 0.0f ) );
+			mTriMesh->appendPosition( vec2( 0.0f, 0.0f ) );
 			mTriMesh->appendTexCoord0( vec2( 0.0f, 0.0f ) );
 		}
 	}
@@ -224,4 +224,4 @@ void Fluid2DTextureApp::draw()
 	mParams.draw();	
 }
 
-CINDER_APP_NATIVE( Fluid2DTextureApp, RendererGl )
+CINDER_APP( Fluid2DTextureApp, RendererGl, Fluid2DTextureApp::prepareSettings )
